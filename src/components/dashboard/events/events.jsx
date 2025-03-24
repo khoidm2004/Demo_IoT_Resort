@@ -16,11 +16,11 @@ const EventsPage = () => {
     endDate: null,
   });
   const [popup, setPopup] = useState({
-      show: false,
-      title: "",
-      message: "",
-      status: "",
-    });
+    show: false,
+    title: "",
+    message: "",
+    status: "",
+  });
 
   const { events, addEvent, fetchEvents, deleteEvent } = eventStore();
 
@@ -40,44 +40,63 @@ const EventsPage = () => {
   const handleAddEvent = async (e) => {
     e.preventDefault();
 
-    const { title, content, startDate, endDate, image } = formData;
+    const { image } = formData;
 
-    if (!title || !content || !startDate || !endDate) {
+    if (!image) {
       setPopup({
         show: true,
         title: "Error",
-        message: "Please fill out all required fields!",
+        message: "Please select an image for the event!",
         status: "error",
       });
       return;
     }
 
-    const newEvent = {
-      eventName: title,
-      eventContent: content,
-      eventPeriod: {
-        startFrom: startDate,
-        endAt: endDate,
-      },
-    };
+    const fileName = image.name;
+    const hasSpaces = /\s/.test(fileName);
     
-    const result = await addEvent(newEvent, image);
-    setPopup({
-      show: true,
-      title: result.Title,
-      message: result.Message,
-      status: result.Status,
-    });
-
-    if (result.Status === "success") {
-      setFormData({
-        title: "",
-        image: null,
-        content: "",
-        startDate: null,
-        endDate: null,
+    if (hasSpaces) {
+      setPopup({
+        show: true,
+        title: "Error",
+        message: "Image file name must not contain any spaces!",
+        status: "error",
       });
-    } 
+      return;
+    }
+
+    try {
+      const result = await addEvent(formData, image);
+      
+      if (!result) {
+        throw new Error("No response received from server");
+      }
+
+      setPopup({
+        show: true,
+        title: result.Title || result.title || "Success",
+        message: result.Message || result.message || "Event added successfully",
+        status: result.Status || result.status || "success",
+      });
+
+      if ((result.Status || result.status) === "success") {
+        setFormData({
+          title: "",
+          image: null,
+          content: "",
+          startDate: null,
+          endDate: null,
+        });
+      }
+    } catch (error) {
+      console.error("Error adding event:", error);
+      setPopup({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to add event",
+        status: "error",
+      });
+    }
   };
 
   const handleInputChange = (e) => {
@@ -86,17 +105,6 @@ const EventsPage = () => {
     if (name === "image") {
       const file = files[0];
       if (file) {
-        const fileName = file.name;
-        const isValidFileName = /^[a-zA-Z]+$/.test(fileName.split('.')[0]); 
-        if (!isValidFileName) {
-          setPopup({
-            show: true,
-            title: "Error",
-            message: "File name must contain only letters and no spaces!",
-            status: "error",
-          });
-          return; 
-        }
         setFormData((prevData) => ({
           ...prevData,
           [name]: file,
@@ -117,22 +125,37 @@ const EventsPage = () => {
     }));
   };
 
+  const handleDateChange = (date, field) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [field]: date,
+    }));
+  };
+
   const handleDeleteEvent = async (eventId) => {
-    console.log(eventId);
-    const result = await deleteEvent(eventId);
-    setPopup({
-      show: true,
-      title: result.Title,
-      message: result.Message,
-      status: result.Status,
-    });
+    try {
+      const result = await deleteEvent(eventId);
+      setPopup({
+        show: true,
+        title: result.Title || result.title || "Success",
+        message: result.Message || result.message || "Event deleted successfully",
+        status: result.Status || result.status || "success",
+      });
+    } catch (error) {
+      setPopup({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to delete event",
+        status: "error",
+      });
+    }
   }; 
 
   return (
     <div className="events-page">
       <h1>Create Event</h1>
 
-      <form onSubmit={handleAddEvent} className="event-form">
+      <form onSubmit={handleAddEvent} className="event-form" noValidate>
         <div className="form-group">
           <label htmlFor="title">Event Name:</label>
           <input
@@ -141,13 +164,13 @@ const EventsPage = () => {
             name="title"
             value={formData.title}
             onChange={handleInputChange}
-            placeholder="e.g., Summer Camping Trip 2023"
+            placeholder="e.g., SummerCamping2023"
             required
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="image">Event Image (optional):</label>
+          <label htmlFor="image">Event Image (required):</label>
           <input
             type="file"
             id="image"
@@ -155,14 +178,21 @@ const EventsPage = () => {
             accept="image/*"
             onChange={handleInputChange}
           />
-          <p className="hint">Upload a photo that represents the event. File name must contain only letters and no spaces.</p>
+          <div className="requirements-hint">
+            <p><strong>Requirements:</strong></p>
+            <ul>
+              <li>Image is required</li>
+              <li>File name must not contain spaces</li>
+              <li>Example valid names: "Event#1.jpg", "Party-2023.png"</li>
+            </ul>
+          </div>
         </div>
 
         <div className="form-group">
           <label htmlFor="startDate">Start Date:</label>
           <DatePicker
             selected={formData.startDate}
-            onChange={(date) => setFormData({ ...formData, startDate: date })}
+            onChange={(date) => handleDateChange(date, 'startDate')}
             showTimeSelect
             timeFormat="HH:mm"
             timeIntervals={15}
@@ -170,6 +200,7 @@ const EventsPage = () => {
             dateFormat="MMMM d, yyyy h:mm aa"
             placeholderText="Select start date and time"
             className="date-picker-input"
+            required
           />
         </div>
 
@@ -177,7 +208,7 @@ const EventsPage = () => {
           <label htmlFor="endDate">End Date:</label>
           <DatePicker
             selected={formData.endDate}
-            onChange={(date) => setFormData({ ...formData, endDate: date })}
+            onChange={(date) => handleDateChange(date, 'endDate')}
             showTimeSelect
             timeFormat="HH:mm"
             timeIntervals={15}
@@ -185,6 +216,7 @@ const EventsPage = () => {
             dateFormat="MMMM d, yyyy h:mm aa"
             placeholderText="Select end date and time"
             className="date-picker-input"
+            required
           />
         </div>
 
@@ -193,15 +225,16 @@ const EventsPage = () => {
           <ReactQuill
             value={formData.content}
             onChange={handleContentChange}
-            placeholder="e.g., Join us for a fun camping trip at XYZ National Park! We'll have BBQ, games, and more."
+            placeholder="Describe your event details here..."
+            required
           />
-          <p className="hint">Describe your event in detail, including activities and any special instructions.</p>
         </div>
 
         <button type="submit" className="submit-button">
           Add Event
         </button>
       </form>
+
       {popup.show && (
         <Popup
           title={popup.title}
@@ -218,7 +251,15 @@ const EventsPage = () => {
           events.map((event) => (
             <div key={event.eventId} className="event-card">
               {event.eventImageLink && (
-                <img src={event.eventImageLink} alt={event.eventName} className="event-image" />
+                <img 
+                  src={event.eventImageLink} 
+                  alt={event.eventName} 
+                  className="event-image" 
+                  onError={(e) => {
+                    e.target.onerror = null; 
+                    e.target.src = '/default-event-image.jpg';
+                  }}
+                />
               )}
               <h3 className="event-title">{event.eventName}</h3>
               <div
@@ -237,7 +278,6 @@ const EventsPage = () => {
           ))
         )}
       </div>
-      
     </div>
   );
 };

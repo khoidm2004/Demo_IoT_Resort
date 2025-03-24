@@ -19,6 +19,7 @@ import EventsPage from "./components/dashboard/events/events";
 import useDataStore from "./services/data";
 import useAuthStore from "./store/authStore";
 import Chatbot from "./components/clientpage/chatbot/chatbot";
+import LoginHeader from "./components/header/loginHeader";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -95,7 +96,7 @@ const App = () => {
           path="/login"
           element={
             <>
-              <Header />
+              <LoginHeader />
               <LoginPage />
               <Footer className={isLoginPage ? 'no-left-padding' : ''}/>
             </>
