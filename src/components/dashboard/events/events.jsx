@@ -40,17 +40,7 @@ const EventsPage = () => {
   const handleAddEvent = async (e) => {
     e.preventDefault();
 
-    const { image } = formData;
-
-    if (!image) {
-      setPopup({
-        show: true,
-        title: "Error",
-        message: "Please select an image for the event!",
-        status: "error",
-      });
-      return;
-    }
+    const { title, content, startDate, endDate, image } = formData;
 
     const fileName = image.name;
     const hasSpaces = /\s/.test(fileName);
@@ -65,38 +55,32 @@ const EventsPage = () => {
       return;
     }
 
-    try {
-      const result = await addEvent(formData, image);
-      
-      if (!result) {
-        throw new Error("No response received from server");
-      }
+    const newEvent = {
+      eventName: title,
+      eventContent: content,
+      eventPeriod: {
+        startFrom: startDate,
+        endAt: endDate,
+      },
+    };
+    
+    const result = await addEvent(newEvent, image);
+    setPopup({
+      show: true,
+      title: result.Title,
+      message: result.Message,
+      status: result.Status,
+    });
 
-      setPopup({
-        show: true,
-        title: result.Title || result.title || "Success",
-        message: result.Message || result.message || "Event added successfully",
-        status: result.Status || result.status || "success",
+    if (result.Status === "success") {
+      setFormData({
+        title: "",
+        image: null,
+        content: "",
+        startDate: null,
+        endDate: null,
       });
-
-      if ((result.Status || result.status) === "success") {
-        setFormData({
-          title: "",
-          image: null,
-          content: "",
-          startDate: null,
-          endDate: null,
-        });
-      }
-    } catch (error) {
-      console.error("Error adding event:", error);
-      setPopup({
-        show: true,
-        title: "Error",
-        message: error.message || "Failed to add event",
-        status: "error",
-      });
-    }
+    } 
   };
 
   const handleInputChange = (e) => {
@@ -125,37 +109,21 @@ const EventsPage = () => {
     }));
   };
 
-  const handleDateChange = (date, field) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      [field]: date,
-    }));
-  };
-
   const handleDeleteEvent = async (eventId) => {
-    try {
-      const result = await deleteEvent(eventId);
-      setPopup({
-        show: true,
-        title: result.Title || result.title || "Success",
-        message: result.Message || result.message || "Event deleted successfully",
-        status: result.Status || result.status || "success",
-      });
-    } catch (error) {
-      setPopup({
-        show: true,
-        title: "Error",
-        message: error.message || "Failed to delete event",
-        status: "error",
-      });
-    }
+    const result = await deleteEvent(eventId);
+    setPopup({
+      show: true,
+      title: result.Title,
+      message: result.Message,
+      status: result.Status,
+    });
   }; 
 
   return (
     <div className="events-page">
       <h1>Create Event</h1>
 
-      <form onSubmit={handleAddEvent} className="event-form" noValidate>
+      <form onSubmit={handleAddEvent} className="event-form">
         <div className="form-group">
           <label htmlFor="title">Event Name:</label>
           <input
@@ -177,6 +145,7 @@ const EventsPage = () => {
             name="image"
             accept="image/*"
             onChange={handleInputChange}
+            required
           />
           <div className="requirements-hint">
             <p><strong>Requirements:</strong></p>
@@ -192,7 +161,7 @@ const EventsPage = () => {
           <label htmlFor="startDate">Start Date:</label>
           <DatePicker
             selected={formData.startDate}
-            onChange={(date) => handleDateChange(date, 'startDate')}
+            onChange={(date) => setFormData({ ...formData, startDate: date })}
             showTimeSelect
             timeFormat="HH:mm"
             timeIntervals={15}
@@ -208,7 +177,7 @@ const EventsPage = () => {
           <label htmlFor="endDate">End Date:</label>
           <DatePicker
             selected={formData.endDate}
-            onChange={(date) => handleDateChange(date, 'endDate')}
+            onChange={(date) => setFormData({ ...formData, endDate: date })}
             showTimeSelect
             timeFormat="HH:mm"
             timeIntervals={15}
