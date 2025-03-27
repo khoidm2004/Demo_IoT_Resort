@@ -73,7 +73,6 @@ const Info = () => {
 
     const { fullName, phoneNum } = formData;
     const inputs = { fullName, phoneNum };
-    console.log("Inputs:", inputs);
 
     const editResponse = user.isAdmin ? await adminEditProfile(inputs, selectedFile) : await clientEditProfile(inputs);
     if (editResponse.Status === "success") {
